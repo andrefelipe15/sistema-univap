@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ficha de Empréstimo — Controle de Materiais</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --paper:#EFEAE0;
+    --paper-dark:#E4DBC4;
+    --card:#FFFDF9;
+    --ink:#241F18;
+    --ink-soft:#6B6353;
+    --line:#D8CFB6;
+    --brand:#2B5D63;
+    --brand-dark:#1D4347;
+    --brand-bg:#DCE9E9;
+    --ok:#3F7D4F;
+    --ok-bg:#E1EEE0;
+    --warn:#B4791E;
+    --warn-bg:#F5E7CC;
+    --danger:#AF3A32;
+    --danger-bg:#F3DCD8;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --display: "Arial Narrow", Arial, "Helvetica Neue", sans-serif;
+    --body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at top left, rgba(43,93,99,0.06), transparent 55%),
+      var(--paper);
+    color:var(--ink);
+    font-family:var(--body);
+    min-height:100vh;
+    padding:20px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+
+  /* MASTHEAD */
+  .masthead{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px 10px 0 0;
+    padding:18px 22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:16px;
+    flex-wrap:wrap;
+    box-shadow:0 1px 0 rgba(0,0,0,0.02);
+  }
+  .masthead h1{
+    font-family:var(--display);
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    font-size:22px;
+    margin:0 0 4px 0;
+    color:var(--ink);
+  }
+  .masthead p{margin:0;font-size:12.5px;color:var(--ink-soft);}
+  .masthead .datebox{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    border:1.5px solid var(--ink);
+    border-radius:4px;
+    padding:6px 10px;
+    color:var(--ink-soft);
+    transform:rotate(-2deg);
+    white-space:nowrap;
+  }
+
+  /* TABS - estilo pasta de arquivo */
+  .tabs{
+    display:flex;
+    gap:6px;
+    padding:10px 14px 0 14px;
+    background:var(--paper);
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+  }
+  .tab-btn{
+    font-family:var(--display);
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    font-weight:700;
+    font-size:12.5px;
+    background:var(--paper-dark);
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    border-bottom:none;
+    padding:10px 16px 12px 16px;
+    border-radius:8px 8px 0 0;
+    cursor:pointer;
+    position:relative;
+    top:1px;
+    transition:transform .12s ease, background .12s ease, color .12s ease;
+  }
+  .tab-btn .count{
+    font-family:var(--mono);
+    font-weight:400;
+    font-size:10px;
+    margin-left:5px;
+    color:var(--ink-soft);
+  }
+  .tab-btn:hover{transform:translateY(-2px);}
+  .tab-btn.active{
+    background:var(--card);
+    color:var(--brand-dark);
+    border-color:var(--line);
+    transform:translateY(-3px);
+    box-shadow:0 -2px 4px rgba(0,0,0,0.03);
+  }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:0 0 10px 10px;
+    padding:22px;
+    min-height:420px;
+  }
+
+  h2.section-title{
+    font-family:var(--display);
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    font-size:15px;
+    color:var(--brand-dark);
+    margin:0 0 4px 0;
+  }
+  .section-sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px 0;}
+
+  /* CONTROLS */
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+  input[type=text], input[type=number], select{
+    font-family:var(--body);
+    font-size:13px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:#fff;
+    color:var(--ink);
+  }
+  input[type=text]:focus, input[type=number]:focus, select:focus{
+    outline:2px solid var(--brand);
+    outline-offset:1px;
+  }
+  .chip-group{display:flex;gap:6px;flex-wrap:wrap;}
+  .chip{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    padding:6px 11px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .chip.active{background:var(--brand);border-color:var(--brand);color:#fff;}
+
+  button.btn{
+    font-family:var(--display);
+    text-transform:uppercase;
+    letter-spacing:0.3px;
+    font-weight:700;
+    font-size:12.5px;
+    padding:10px 16px;
+    border-radius:6px;
+    border:1.5px solid var(--brand);
+    background:var(--brand);
+    color:#fff;
+    cursor:pointer;
+    transition:filter .1s ease;
+  }
+  button.btn:hover{filter:brightness(1.08);}
+  button.btn.secondary{background:#fff;color:var(--brand-dark);}
+  button.btn.danger{background:#fff;color:var(--danger);border-color:var(--danger);}
+  button.btn.ghost{background:transparent;border-color:transparent;color:var(--ink-soft);text-decoration:underline;font-weight:600;padding:6px 4px;}
+  button.btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+  /* EMPTY STATE */
+  .empty{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--ink-soft);
+    border:1.5px dashed var(--line);
+    border-radius:10px;
+  }
+  .empty b{color:var(--ink);}
+
+  /* GRID DE FICHAS (Painel) */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(250px,1fr));gap:16px;}
+  .ficha{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 14px 16px 14px;
+    position:relative;
+    overflow:hidden;
+  }
+  .ficha::before{
+    content:"";
+    position:absolute;top:0;left:0;right:0;height:6px;
+    background-image:repeating-linear-gradient(90deg, var(--paper-dark) 0 6px, transparent 6px 12px);
+  }
+  .ficha::after{
+    content:"";
+    position:absolute;top:9px;left:12px;width:8px;height:8px;border-radius:50%;
+    background:var(--paper);
+    box-shadow:inset 0 0 0 1px var(--line);
+  }
+  .ficha-top{display:flex;justify-content:space-between;gap:10px;margin-top:8px;}
+  .ficha-id{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);letter-spacing:0.5px;}
+  .ficha h3{font-family:var(--display);font-size:15px;margin:2px 0 2px 0;text-transform:none;}
+  .ficha .cat{font-size:11px;color:var(--ink-soft);}
+  .qr-box{
+    width:84px;height:84px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:#fff;border:1px solid var(--line);border-radius:6px;
+    padding:4px;
+  }
+  .qr-box img, .qr-box canvas{width:100%!important;height:100%!important;image-rendering:pixelated;}
+  .stamp{
+    display:inline-block;
+    font-family:var(--display);
+    font-size:10.5px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:0.8px;
+    padding:4px 10px;
+    border-radius:3px;
+    border:1.5px solid currentColor;
+    transform:rotate(-3deg);
+    margin:10px 0 8px 0;
+  }
+  .stamp.disponivel{color:var(--ok);background:var(--ok-bg);}
+  .stamp.emprestado{color:var(--warn);background:var(--warn-bg);}
+  .stamp.atrasado{color:var(--danger);background:var(--danger-bg);}
+  .ficha-info{font-size:12px;color:var(--ink-soft);line-height:1.5;}
+  .ficha-info b{color:var(--ink);}
+  .ficha-actions{margin-top:10px;display:flex;gap:6px;}
+  .ficha-actions button{flex:1;font-size:11px;padding:7px 8px;}
+
+  /* ESCANEAR */
+  .scan-layout{display:grid;grid-template-columns:1.1fr 1fr;gap:22px;}
+  @media (max-width:720px){.scan-layout{grid-template-columns:1fr;}}
+  .cam-frame{
+    background:#12181a;
+    border-radius:10px;
+    overflow:hidden;
+    position:relative;
+    aspect-ratio:4/3;
+    display:flex;align-items:center;justify-content:center;
+    border:2px solid var(--ink);
+  }
+  .cam-frame video{width:100%;height:100%;object-fit:cover;}
+  .cam-frame .reticle{
+    position:absolute;inset:14%;
+    border:2px dashed rgba(255,255,255,0.55);
+    border-radius:10px;
+    pointer-events:none;
+  }
+  .cam-off{color:#cfc9ba;font-size:12.5px;text-align:center;padding:20px;font-family:var(--mono);}
+  .cam-controls{display:flex;gap:8px;margin-top:10px;}
+  .manual-box{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px;
+    background:var(--paper);
+  }
+  .manual-box h4{margin:0 0 4px 0;font-family:var(--display);font-size:12.5px;text-transform:uppercase;color:var(--ink-soft);}
+  .manual-box p{margin:0 0 10px 0;font-size:11.5px;color:var(--ink-soft);}
+  .divider-word{
+    text-align:center;font-size:11px;color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:1px;margin:16px 0;
+    display:flex;align-items:center;gap:10px;
+  }
+  .divider-word::before,.divider-word::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  .action-panel{
+    margin-top:18px;
+    border:1.5px solid var(--brand);
+    border-radius:8px;
+    padding:16px;
+    background:var(--brand-bg);
+  }
+  .action-panel h4{margin:0 0 6px 0;font-family:var(--display);font-size:14px;color:var(--brand-dark);text-transform:uppercase;}
+  .action-panel .field{margin-bottom:10px;}
+  .action-panel label{display:block;font-size:11.5px;color:var(--ink-soft);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.4px;}
+  .action-panel input{width:100%;}
+  .msg-error{color:var(--danger);font-size:12.5px;background:var(--danger-bg);border-radius:6px;padding:8px 10px;margin-top:10px;}
+  .msg-ok{color:var(--ok);font-size:12.5px;background:var(--ok-bg);border-radius:6px;padding:8px 10px;margin-top:10px;}
+
+  /* CADASTRAR */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:520px;}
+  @media (max-width:560px){.form-grid{grid-template-columns:1fr;}}
+  .form-grid .full{grid-column:1/-1;}
+  .form-grid label{display:block;font-size:11.5px;color:var(--ink-soft);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px;}
+  .form-grid input, .form-grid select{width:100%;}
+  .new-item-result{
+    margin-top:22px;
+    display:flex;gap:20px;align-items:center;flex-wrap:wrap;
+    border:1.5px dashed var(--brand);border-radius:8px;padding:16px;
+    background:var(--brand-bg);
+  }
+  .new-item-result .qr-box{width:130px;height:130px;}
+
+  /* HISTORICO */
+  table.hist{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.hist th{
+    text-align:left;font-family:var(--display);text-transform:uppercase;font-size:10.5px;
+    letter-spacing:0.5px;color:var(--ink-soft);border-bottom:1.5px solid var(--ink);padding:8px 6px;
+  }
+  table.hist td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .tipo-badge{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;padding:2px 7px;border-radius:4px;}
+  .tipo-badge.saida{background:var(--warn-bg);color:var(--warn);}
+  .tipo-badge.devolucao{background:var(--ok-bg);color:var(--ok);}
+  .ts{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
+
+  footer.appfoot{
+    text-align:center;font-size:11px;color:var(--ink-soft);margin-top:14px;padding:8px;
+  }
+  .toast{
+    position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:12.5px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.2);z-index:999;opacity:0;transition:opacity .2s ease;
+    pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+  .loading{color:var(--ink-soft);font-size:12.5px;padding:20px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div>
+      <h1>Ficha de Empréstimo</h1>
+      <p>Controle de materiais por QR Code — Colégio UNIVAP · Técnico em Administração</p>
+    </div>
+    <div class="datebox" id="todayBox"></div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="panel" id="panel"><div class="loading">Carregando dados…</div></div>
+  <footer class="appfoot">Dados salvos no Firebase e sincronizados em tempo real entre todos que abrirem este site.</footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==================== ESTADO ==================== */
+let items = [];
+let history = [];
+let activeTab = 'painel';
+let dataReady = false;
+let loadError = null;
+
+let painelFiltro = 'todos';
+let painelBusca = '';
+let histFiltro = 'todos';
+let histBusca = '';
+
+let cameraStream = null;
+let scanRafId = null;
+let cameraError = null;
+let pendingItemId = null;
+let scanMsg = null; // {type:'error'|'ok', text}
+
+const CATEGORIAS = ['Livro','Calculadora','Chromebook','Outro'];
+const PRAZO_PADRAO = {Livro:7, Calculadora:3, Chromebook:1, Outro:3};
+
+document.getElementById('todayBox').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+
+/* ==================== PERSISTÊNCIA (Firebase Firestore) ====================
+   1. Crie um projeto gratuito em https://console.firebase.google.com
+   2. Ative "Firestore Database" (modo produção ou teste)
+   3. Em Configurações do projeto > Seus apps > Web (</>), copie o objeto de config
+   4. Cole os valores abaixo, no lugar de "SUA_..._AQUI"
+   5. Em Firestore > Regras, durante o desenvolvimento/apresentação, pode usar:
+        rules_version = '2';
+        service cloud.firestore {
+          match /databases/{database}/documents {
+            match /{document=**} { allow read, write: if true; }
+          }
+        }
+      (isso deixa qualquer pessoa ler/escrever — ok para um projeto escolar de demonstração,
+       não recomendado para dados sensíveis em produção real)
+================================================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyD9jtSD-6FcZkhOZkoZauBtwcru25YK1sQ",
+  authDomain: "emprestimos-univap.firebaseapp.com",
+  projectId: "emprestimos-univap",
+  storageBucket: "emprestimos-univap.firebasestorage.app",
+  messagingSenderId: "799062769032",
+  appId: "1:799062769032:web:c3b8b05ed9a1931c2b8e3d"
+};
+
+let db = null;
+const COLECAO = 'sistema-emprestimos'; // pode trocar o nome se quiser
+
+function firebaseConfigurado(){
+  return firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf('SUA_') !== 0;
+}
+
+function initFirebase(){
+  if(!firebaseConfigurado()){
+    loadError = 'O Firebase ainda não foi configurado. Abra o código-fonte, procure por "firebaseConfig" perto do início do <script> e cole as chaves do seu projeto Firebase (veja o comentário logo acima com o passo a passo).';
+    dataReady = true;
+    render();
+    return;
+  }
+  try{
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  }catch(err){
+    console.error(err);
+    loadError = 'Não foi possível conectar ao Firebase. Confira se as chaves em "firebaseConfig" estão corretas.';
+    dataReady = true;
+    render();
+    return;
+  }
+
+  // Escuta em tempo real: qualquer pessoa que salvar algo atualiza a tela de todo mundo
+  db.collection(COLECAO).doc('items').onSnapshot(
+    (doc)=>{
+      items = (doc.exists && doc.data().value) ? doc.data().value : [];
+      dataReady = true;
+      render();
+    },
+    (err)=>{
+      console.error(err);
+      loadError = 'Erro ao conectar com o banco de dados. Verifique as regras do Firestore e sua conexão.';
+      dataReady = true;
+      render();
+    }
+  );
+
+  db.collection(COLECAO).doc('history').onSnapshot(
+    (doc)=>{
+      history = (doc.exists && doc.data().value) ? doc.data().value : [];
+      render();
+    },
+    (err)=> console.error(err)
+  );
+}
+
+async function saveItems(){
+  if(!db) return;
+  try{
+    await db.collection(COLECAO).doc('items').set({ value: items });
+  }catch(e){
+    console.error(e);
+    showToast('Erro ao salvar. Verifique sua conexão.');
+  }
+}
+async function saveHistory(){
+  if(!db) return;
+  try{
+    await db.collection(COLECAO).doc('history').set({ value: history });
+  }catch(e){
+    console.error(e);
+    showToast('Erro ao salvar histórico.');
+  }
+}
+
+/* ==================== UTIL ==================== */
+function genId(){
+  return (Math.random().toString(36).slice(2,6) + Date.now().toString(36).slice(-3)).toUpperCase();
+}
+function fmtDate(ts){
+  if(!ts) return '—';
+  return new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function effectiveStatus(item){
+  if(item.status === 'emprestado' && item.dataPrevista && Date.now() > item.dataPrevista) return 'atrasado';
+  return item.status;
+}
+function statusLabel(s){
+  return s==='disponivel' ? 'Disponível' : s==='emprestado' ? 'Emprestado' : 'Atrasado';
+}
+function showToast(text){
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(showToast._tm);
+  showToast._tm = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function esc(str){
+  return String(str==null?'':str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ==================== RENDER RAIZ ==================== */
+function render(){
+  renderTabs();
+  const panel = document.getElementById('panel');
+  if(!dataReady){ panel.innerHTML = '<div class="loading">Carregando dados…</div>'; return; }
+  if(loadError){ panel.innerHTML = `<div class="msg-error">${esc(loadError)}</div>`; return; }
+
+  if(activeTab==='painel') renderPainel(panel);
+  else if(activeTab==='escanear') renderEscanear(panel);
+  else if(activeTab==='cadastrar') renderCadastrar(panel);
+  else if(activeTab==='historico') renderHistorico(panel);
+
+  renderAllQRCodes();
+}
+
+function renderTabs(){
+  const tabs = [
+    {id:'painel', label:'Painel', count: items.length},
+    {id:'escanear', label:'Escanear', count:null},
+    {id:'cadastrar', label:'Cadastrar item', count:null},
+    {id:'historico', label:'Histórico', count: history.length},
+  ];
+  document.getElementById('tabs').innerHTML = tabs.map(t => `
+    <button class="tab-btn ${activeTab===t.id?'active':''}" data-tab="${t.id}">
+      ${t.label}${t.count!==null?`<span class="count">(${t.count})</span>`:''}
+    </button>
+  `).join('');
+}
+
+/* ==================== ABA: PAINEL ==================== */
+function renderPainel(panel){
+  const filtered = items.filter(it=>{
+    const st = effectiveStatus(it);
+    if(painelFiltro!=='todos' && st!==painelFiltro) return false;
+    const q = painelBusca.trim().toLowerCase();
+    if(q && !(it.nome.toLowerCase().includes(q) || (it.aluno||'').toLowerCase().includes(q) || it.id.toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b)=>{
+    const order = {atrasado:0, emprestado:1, disponivel:2};
+    return order[effectiveStatus(a)] - order[effectiveStatus(b)] || a.nome.localeCompare(b.nome);
+  });
+
+  panel.innerHTML = `
+    <h2 class="section-title">Painel de materiais</h2>
+    <p class="section-sub">Todos os itens cadastrados, com status em tempo real e responsável atual.</p>
+    <div class="toolbar">
+      <input type="text" id="painelBusca" placeholder="Buscar por item, aluno ou código..." value="${esc(painelBusca)}" style="flex:1;min-width:180px;">
+      <div class="chip-group">
+        <div class="chip ${painelFiltro==='todos'?'active':''}" data-pfiltro="todos">Todos</div>
+        <div class="chip ${painelFiltro==='disponivel'?'active':''}" data-pfiltro="disponivel">Disponível</div>
+        <div class="chip ${painelFiltro==='emprestado'?'active':''}" data-pfiltro="emprestado">Emprestado</div>
+        <div class="chip ${painelFiltro==='atrasado'?'active':''}" data-pfiltro="atrasado">Atrasado</div>
+      </div>
+    </div>
+    ${items.length===0 ? `
+      <div class="empty">Nenhum item cadastrado ainda.<br><b>Vá até "Cadastrar item"</b> para gerar o primeiro QR Code e colar no material físico.</div>
+    ` : filtered.length===0 ? `
+      <div class="empty">Nenhum item encontrado com esse filtro.</div>
+    ` : `
+      <div class="grid">
+        ${filtered.map(it=>renderFicha(it)).join('')}
+      </div>
+    `}
+    ${items.length>0 ? `<div style="margin-top:20px;"><button class="btn ghost" data-action="reset-tudo">Limpar todos os dados (reiniciar demonstração)</button></div>` : ''}
+  `;
+}
+
+function renderFicha(it){
+  const st = effectiveStatus(it);
+  let infoLine = '';
+  if(st==='emprestado' || st==='atrasado'){
+    infoLine = `<div class="ficha-info"><b>${esc(it.aluno||'—')}</b> · turma ${esc(it.turma||'—')}<br>Retirado em ${fmtDate(it.dataSaida)}</div>`;
+    if(st==='atrasado'){
+      const dias = Math.max(1, Math.ceil((Date.now()-it.dataPrevista)/86400000));
+      infoLine += `<div class="ficha-info" style="color:var(--danger);margin-top:3px;">${dias} dia(s) de atraso</div>`;
+    }
+  } else {
+    infoLine = `<div class="ficha-info">Pronto para retirada.</div>`;
+  }
+  return `
+    <div class="ficha">
+      <div class="ficha-top">
+        <div>
+          <div class="ficha-id">#${esc(it.id)}</div>
+          <h3>${esc(it.nome)}</h3>
+          <div class="cat">${esc(it.categoria)}</div>
+        </div>
+        <div class="qr-box" id="qr-painel-${esc(it.id)}"></div>
+      </div>
+      <div class="stamp ${st}">${statusLabel(st)}</div>
+      ${infoLine}
+      <div class="ficha-actions">
+        <button class="btn secondary" data-action="baixar-qr" data-id="${esc(it.id)}">Baixar QR</button>
+        <button class="btn ${st==='disponivel'?'':'danger'}" data-action="ir-escanear" data-id="${esc(it.id)}">${st==='disponivel'?'Registrar saída':'Registrar devolução'}</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ==================== ABA: ESCANEAR ==================== */
+function renderEscanear(panel){
+  const options = [...items].sort((a,b)=>a.nome.localeCompare(b.nome))
+    .map(it=>`<option value="${esc(it.id)}">${esc(it.nome)} — #${esc(it.id)} (${statusLabel(effectiveStatus(it))})</option>`).join('');
+
+  panel.innerHTML = `
+    <h2 class="section-title">Escanear QR Code</h2>
+    <p class="section-sub">Aponte a câmera para a etiqueta do item. Sem câmera disponível? Use a seleção manual — ótimo plano B na hora da apresentação.</p>
+    <div class="scan-layout">
+      <div>
+        <div class="cam-frame" id="camFrame">
+          <div class="cam-off" id="camOff">Câmera desligada.<br>Clique em "Iniciar câmera" para escanear.</div>
+          <video id="video" playsinline style="display:none;"></video>
+          <div class="reticle" id="reticle" style="display:none;"></div>
+        </div>
+        <div class="cam-controls">
+          <button class="btn" id="btnStartCam">Iniciar câmera</button>
+          <button class="btn secondary" id="btnStopCam" style="display:none;">Parar câmera</button>
+        </div>
+        ${cameraError ? `<div class="msg-error">${esc(cameraError)}</div>` : ''}
+        <div class="divider-word">ou</div>
+        <div class="manual-box">
+          <h4>Seleção manual (modo apresentação)</h4>
+          <p>Simula a leitura de um QR Code — útil quando a câmera não funciona no projetor.</p>
+          <select id="manualSelect" style="width:100%;margin-bottom:10px;" ${items.length===0?'disabled':''}>
+            ${items.length===0 ? '<option>Nenhum item cadastrado</option>' : options}
+          </select>
+          <button class="btn secondary" id="btnManualScan" style="width:100%;" ${items.length===0?'disabled':''}>Simular leitura</button>
+        </div>
+      </div>
+      <div id="actionArea">
+        ${renderActionArea()}
+      </div>
+    </div>
+  `;
+
+  // canvas oculto para processamento de frames
+  if(!document.getElementById('scanCanvas')){
+    const c = document.createElement('canvas');
+    c.id='scanCanvas';
+    c.style.display='none';
+    document.body.appendChild(c);
+  }
+
+  document.getElementById('btnStartCam').onclick = startCamera;
+  document.getElementById('btnStopCam').onclick = ()=>{ stopCamera(); render(); };
+  document.getElementById('btnManualScan').onclick = ()=>{
+    const sel = document.getElementById('manualSelect');
+    if(sel && sel.value) handleScanResult(sel.value);
+  };
+
+  if(cameraStream){
+    document.getElementById('camOff').style.display='none';
+    document.getElementById('video').style.display='block';
+    document.getElementById('reticle').style.display='block';
+    document.getElementById('btnStartCam').style.display='none';
+    document.getElementById('btnStopCam').style.display='inline-block';
+    document.getElementById('video').srcObject = cameraStream;
+    document.getElementById('video').play().catch(()=>{});
+  }
+}
+
+function renderActionArea(){
+  if(!pendingItemId) {
+    return `<div class="empty" style="margin-top:0;">Aguardando leitura de um item...<br><span style="font-size:11px;">O item lido aparecerá aqui com o formulário de saída ou devolução.</span></div>`;
+  }
+  const item = items.find(i=>i.id===pendingItemId);
+  if(!item){
+    return `<div class="msg-error">Item não encontrado. Ele pode ter sido removido. <br><button class="btn ghost" data-action="cancelar-pendente">Fechar</button></div>`;
+  }
+  const st = effectiveStatus(item);
+  let body = '';
+  if(st==='disponivel'){
+    body = `
+      <div class="field">
+        <label>Nome do aluno</label>
+        <input type="text" id="fAluno" placeholder="Ex: Maria Souza">
+      </div>
+      <div class="field">
+        <label>Turma</label>
+        <input type="text" id="fTurma" placeholder="Ex: 2ºADM-A">
+      </div>
+      <button class="btn" data-action="registrar-saida" data-id="${esc(item.id)}">Registrar retirada</button>
+      <button class="btn ghost" data-action="cancelar-pendente">Cancelar</button>
+    `;
+  } else {
+    const dias = st==='atrasado' ? Math.max(1, Math.ceil((Date.now()-item.dataPrevista)/86400000)) : null;
+    body = `
+      <div class="ficha-info" style="margin-bottom:10px;">
+        Emprestado a <b>${esc(item.aluno)}</b> · turma ${esc(item.turma)}<br>
+        Desde ${fmtDate(item.dataSaida)}
+        ${dias? `<br><span style="color:var(--danger)">${dias} dia(s) de atraso</span>`:''}
+      </div>
+      <button class="btn" data-action="registrar-devolucao" data-id="${esc(item.id)}">Confirmar devolução</button>
+      <button class="btn ghost" data-action="cancelar-pendente">Cancelar</button>
+    `;
+  }
+  return `
+    <div class="action-panel">
+      <h4>${st==='disponivel'?'Registrar saída':'Registrar devolução'}</h4>
+      <div class="ficha-info" style="margin-bottom:10px;"><b>${esc(item.nome)}</b> — #${esc(item.id)} (${esc(item.categoria)})</div>
+      ${body}
+      ${scanMsg ? `<div class="${scanMsg.type==='error'?'msg-error':'msg-ok'}">${esc(scanMsg.text)}</div>` : ''}
+    </div>
+  `;
+}
+
+async function startCamera(){
+  cameraError = null;
+  try{
+    cameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    render();
+    scanTick();
+  }catch(err){
+    console.error(err);
+    cameraError = 'Não foi possível acessar a câmera. Use a seleção manual abaixo.';
+    cameraStream = null;
+    render();
+  }
+}
+function stopCamera(){
+  if(cameraStream){
+    cameraStream.getTracks().forEach(t=>t.stop());
+    cameraStream = null;
+  }
+  if(scanRafId) cancelAnimationFrame(scanRafId);
+  scanRafId = null;
+}
+function scanTick(){
+  if(!cameraStream) return;
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('scanCanvas');
+  if(video && canvas && video.readyState === video.HAVE_ENOUGH_DATA){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code = jsQR(imgData.data, imgData.width, imgData.height);
+    if(code && code.data){
+      stopCamera();
+      handleScanResult(code.data.trim());
+      return;
+    }
+  }
+  scanRafId = requestAnimationFrame(scanTick);
+}
+
+function handleScanResult(idText){
+  const item = items.find(i=>i.id === idText || `ITEM:${i.id}` === idText);
+  scanMsg = null;
+  if(!item){
+    scanMsg = {type:'error', text:'QR Code não corresponde a nenhum item cadastrado.'};
+    pendingItemId = null;
+  } else {
+    pendingItemId = item.id;
+  }
+  render();
+}
+
+async function registrarSaida(itemId){
+  const aluno = (document.getElementById('fAluno')?.value || '').trim();
+  const turma = (document.getElementById('fTurma')?.value || '').trim();
+  if(!aluno || !turma){
+    scanMsg = {type:'error', text:'Preencha nome do aluno e turma.'};
+    render();
+    return;
+  }
+  const item = items.find(i=>i.id===itemId);
+  if(!item) return;
+  const now = Date.now();
+  const prazoDias = item.prazoDias || 3;
+  item.status = 'emprestado';
+  item.aluno = aluno;
+  item.turma = turma;
+  item.dataSaida = now;
+  item.dataPrevista = now + prazoDias*86400000;
+  await saveItems();
+  history.unshift({id:genId(), itemId:item.id, itemNome:item.nome, tipo:'saida', aluno, turma, timestamp:now});
+  await saveHistory();
+  pendingItemId = null;
+  scanMsg = null;
+  showToast(`Saída registrada: ${item.nome} → ${aluno}`);
+  render();
+}
+
+async function registrarDevolucao(itemId){
+  const item = items.find(i=>i.id===itemId);
+  if(!item) return;
+  const now = Date.now();
+  history.unshift({id:genId(), itemId:item.id, itemNome:item.nome, tipo:'devolucao', aluno:item.aluno, turma:item.turma, timestamp:now});
+  await saveHistory();
+  item.status = 'disponivel';
+  item.aluno = null;
+  item.turma = null;
+  item.dataSaida = null;
+  item.dataPrevista = null;
+  await saveItems();
+  pendingItemId = null;
+  scanMsg = null;
+  showToast(`Devolução registrada: ${item.nome}`);
+  render();
+}
+
+/* ==================== ABA: CADASTRAR ==================== */
+let novoItemGerado = null;
+
+function renderCadastrar(panel){
+  panel.innerHTML = `
+    <h2 class="section-title">Cadastrar novo item</h2>
+    <p class="section-sub">Ao salvar, um QR Code único é gerado. Baixe a imagem e cole no objeto físico (calculadora, livro, chromebook).</p>
+    <div class="form-grid">
+      <div class="full">
+        <label>Nome do item</label>
+        <input type="text" id="cNome" placeholder="Ex: Calculadora científica 07">
+      </div>
+      <div>
+        <label>Categoria</label>
+        <select id="cCategoria">
+          ${CATEGORIAS.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>Prazo de devolução (dias)</label>
+        <input type="number" id="cPrazo" min="1" max="60" value="${PRAZO_PADRAO['Livro']}">
+      </div>
+      <div class="full">
+        <button class="btn" id="btnSalvarItem">Salvar e gerar QR Code</button>
+      </div>
+    </div>
+    <div id="novoItemArea"></div>
+  `;
+
+  document.getElementById('cCategoria').onchange = (e)=>{
+    document.getElementById('cPrazo').value = PRAZO_PADRAO[e.target.value] ?? 3;
+  };
+
+  document.getElementById('btnSalvarItem').onclick = async ()=>{
+    const nome = document.getElementById('cNome').value.trim();
+    const categoria = document.getElementById('cCategoria').value;
+    const prazoDias = parseInt(document.getElementById('cPrazo').value,10) || 3;
+    if(!nome){
+      showToast('Digite o nome do item.');
+      return;
+    }
+    const novo = {
+      id: genId(),
+      nome, categoria, prazoDias,
+      status:'disponivel',
+      aluno:null, turma:null, dataSaida:null, dataPrevista:null,
+      criadoEm: Date.now()
+    };
+    items.push(novo);
+    await saveItems();
+    novoItemGerado = novo;
+    showToast('Item cadastrado com sucesso!');
+    renderNovoItemArea();
+    renderTabs();
+    document.getElementById('cNome').value='';
+  };
+
+  renderNovoItemArea();
+}
+
+function renderNovoItemArea(){
+  const area = document.getElementById('novoItemArea');
+  if(!area) return;
+  if(!novoItemGerado){ area.innerHTML=''; return; }
+  const it = novoItemGerado;
+  area.innerHTML = `
+    <div class="new-item-result">
+      <div class="qr-box" id="qr-novo-${esc(it.id)}"></div>
+      <div>
+        <div class="ficha-id">#${esc(it.id)}</div>
+        <h3 style="font-family:var(--display);margin:2px 0;">${esc(it.nome)}</h3>
+        <div class="ficha-info">${esc(it.categoria)} · prazo de ${it.prazoDias} dia(s)</div>
+        <div style="margin-top:10px;">
+          <button class="btn secondary" data-action="baixar-qr" data-id="${esc(it.id)}">Baixar QR (PNG)</button>
+        </div>
+        <div class="ficha-info" style="margin-top:8px;max-width:280px;">Imprima ou cole esta imagem diretamente no item físico.</div>
+      </div>
+    </div>
+  `;
+  setTimeout(()=>renderQRInto(`qr-novo-${it.id}`, it.id), 0);
+}
+
+/* ==================== ABA: HISTÓRICO ==================== */
+function renderHistorico(panel){
+  const filtered = history.filter(h=>{
+    if(histFiltro!=='todos' && h.tipo!==histFiltro) return false;
+    const q = histBusca.trim().toLowerCase();
+    if(q && !(h.itemNome.toLowerCase().includes(q) || (h.aluno||'').toLowerCase().includes(q) || (h.turma||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  panel.innerHTML = `
+    <h2 class="section-title">Histórico de movimentações</h2>
+    <p class="section-sub">Registro de auditoria de todas as saídas e devoluções.</p>
+    <div class="toolbar">
+      <input type="text" id="histBusca" placeholder="Buscar por item, aluno ou turma..." value="${esc(histBusca)}" style="flex:1;min-width:180px;">
+      <div class="chip-group">
+        <div class="chip ${histFiltro==='todos'?'active':''}" data-hfiltro="todos">Todos</div>
+        <div class="chip ${histFiltro==='saida'?'active':''}" data-hfiltro="saida">Saídas</div>
+        <div class="chip ${histFiltro==='devolucao'?'active':''}" data-hfiltro="devolucao">Devoluções</div>
+      </div>
+    </div>
+    ${filtered.length===0 ? `<div class="empty">Nenhum registro encontrado.</div>` : `
+      <table class="hist">
+        <thead><tr><th>Data/hora</th><th>Tipo</th><th>Item</th><th>Aluno</th><th>Turma</th></tr></thead>
+        <tbody>
+          ${filtered.map(h=>`
+            <tr>
+              <td class="ts">${fmtDate(h.timestamp)}</td>
+              <td><span class="tipo-badge ${h.tipo}">${h.tipo==='saida'?'Saída':'Devolução'}</span></td>
+              <td>${esc(h.itemNome)}</td>
+              <td>${esc(h.aluno||'—')}</td>
+              <td>${esc(h.turma||'—')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `}
+  `;
+}
+
+/* ==================== QR CODES ==================== */
+function renderQRInto(elId, text){
+  const el = document.getElementById(elId);
+  if(!el || typeof QRCode === 'undefined') return;
+  el.innerHTML = '';
+  try{
+    new QRCode(el, {
+      text: text,
+      width: 200,
+      height: 200,
+      colorDark: '#241F18',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }catch(e){ console.error('Erro ao gerar QR', e); }
+}
+function renderAllQRCodes(){
+  if(activeTab==='painel'){
+    items.forEach(it=> renderQRInto(`qr-painel-${it.id}`, it.id));
+  }
+}
+
+function downloadQR(itemId){
+  const item = items.find(i=>i.id===itemId);
+  if(!item) return;
+  // gera um QR isolado em memória para garantir resolução boa de impressão
+  const tmp = document.createElement('div');
+  tmp.style.position='fixed';
+  tmp.style.left='-9999px';
+  document.body.appendChild(tmp);
+  new QRCode(tmp, { text:item.id, width:400, height:400, colorDark:'#241F18', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
+  setTimeout(()=>{
+    const canvas = tmp.querySelector('canvas');
+    if(canvas){
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `qr-${item.nome.replace(/[^a-z0-9]+/gi,'-')}-${item.id}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    tmp.remove();
+  }, 80);
+}
+
+/* ==================== EVENTOS GLOBAIS (delegação) ==================== */
+document.addEventListener('click', async (e)=>{
+  const tabBtn = e.target.closest('[data-tab]');
+  if(tabBtn){ activeTab = tabBtn.dataset.tab; pendingItemId=null; scanMsg=null; cameraError=null; stopCamera(); render(); return; }
+
+  const pf = e.target.closest('[data-pfiltro]');
+  if(pf){ painelFiltro = pf.dataset.pfiltro; render(); return; }
+
+  const hf = e.target.closest('[data-hfiltro]');
+  if(hf){ histFiltro = hf.dataset.hfiltro; render(); return; }
+
+  const act = e.target.closest('[data-action]');
+  if(act){
+    const action = act.dataset.action;
+    const id = act.dataset.id;
+    if(action==='baixar-qr'){ downloadQR(id); }
+    else if(action==='ir-escanear'){ activeTab='escanear'; pendingItemId=id; scanMsg=null; render(); }
+    else if(action==='registrar-saida'){ await registrarSaida(id); }
+    else if(action==='registrar-devolucao'){ await registrarDevolucao(id); }
+    else if(action==='cancelar-pendente'){ pendingItemId=null; scanMsg=null; render(); }
+    else if(action==='reset-tudo'){
+      if(confirm('Isso vai apagar todos os itens e o histórico para todos os usuários. Confirmar?')){
+        items=[]; history=[];
+        await saveItems(); await saveHistory();
+        showToast('Dados reiniciados.');
+        render();
+      }
+    }
+    return;
+  }
+});
+
+document.addEventListener('input', (e)=>{
+  if(e.target.id!=='painelBusca' && e.target.id!=='histBusca') return;
+  const id = e.target.id;
+  const val = e.target.value;
+  const pos = e.target.selectionStart;
+  if(id==='painelBusca') painelBusca = val;
+  if(id==='histBusca') histBusca = val;
+  render();
+  const el = document.getElementById(id);
+  if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} }
+});
+
+/* ==================== INIT ==================== */
+initFirebase();
+</script>
+</body>
+</html>
