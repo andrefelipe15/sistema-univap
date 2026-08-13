@@ -395,12 +395,12 @@ document.getElementById('todayBox').textContent = new Date().toLocaleDateString(
        não recomendado para dados sensíveis em produção real)
 ================================================================================ */
 const firebaseConfig = {
-  apiKey: "AIzaSyD9jtSD-6FcZkhOZkoZauBtwcru25YK1sQ",
-  authDomain: "emprestimos-univap.firebaseapp.com",
-  projectId: "emprestimos-univap",
-  storageBucket: "emprestimos-univap.firebasestorage.app",
-  messagingSenderId: "799062769032",
-  appId: "1:799062769032:web:c3b8b05ed9a1931c2b8e3d"
+  apiKey: "SUA_API_KEY_AQUI",
+  authDomain: "SEU_PROJETO.firebaseapp.com",
+  projectId: "SEU_PROJETO_ID_AQUI",
+  storageBucket: "SEU_PROJETO.appspot.com",
+  messagingSenderId: "SEU_SENDER_ID_AQUI",
+  appId: "SEU_APP_ID_AQUI"
 };
 
 let db = null;
@@ -568,7 +568,7 @@ function renderFicha(it){
   const st = effectiveStatus(it);
   let infoLine = '';
   if(st==='emprestado' || st==='atrasado'){
-    infoLine = `<div class="ficha-info"><b>${esc(it.aluno||'—')}</b> · turma ${esc(it.turma||'—')}<br>Retirado em ${fmtDate(it.dataSaida)}</div>`;
+    infoLine = `<div class="ficha-info"><b>${esc(it.aluno||'—')}</b> · turma ${esc(it.turma||'—')}${it.matricula?` · mat. ${esc(it.matricula)}`:''}<br>Retirado em ${fmtDate(it.dataSaida)}</div>`;
     if(st==='atrasado'){
       const dias = Math.max(1, Math.ceil((Date.now()-it.dataPrevista)/86400000));
       infoLine += `<div class="ficha-info" style="color:var(--danger);margin-top:3px;">${dias} dia(s) de atraso</div>`;
@@ -591,6 +591,9 @@ function renderFicha(it){
       <div class="ficha-actions">
         <button class="btn secondary" data-action="baixar-qr" data-id="${esc(it.id)}">Baixar QR</button>
         <button class="btn ${st==='disponivel'?'':'danger'}" data-action="ir-escanear" data-id="${esc(it.id)}">${st==='disponivel'?'Registrar saída':'Registrar devolução'}</button>
+      </div>
+      <div class="ficha-actions" style="margin-top:6px;">
+        <button class="btn ghost" style="flex:1;text-align:center;color:var(--danger);" data-action="remover-item" data-id="${esc(it.id)}">Remover item cadastrado</button>
       </div>
     </div>
   `;
@@ -678,6 +681,10 @@ function renderActionArea(){
         <label>Turma</label>
         <input type="text" id="fTurma" placeholder="Ex: 2ºADM-A">
       </div>
+      <div class="field">
+        <label>Matrícula</label>
+        <input type="text" id="fMatricula" placeholder="Ex: 202512345" inputmode="numeric">
+      </div>
       <button class="btn" data-action="registrar-saida" data-id="${esc(item.id)}">Registrar retirada</button>
       <button class="btn ghost" data-action="cancelar-pendente">Cancelar</button>
     `;
@@ -685,7 +692,7 @@ function renderActionArea(){
     const dias = st==='atrasado' ? Math.max(1, Math.ceil((Date.now()-item.dataPrevista)/86400000)) : null;
     body = `
       <div class="ficha-info" style="margin-bottom:10px;">
-        Emprestado a <b>${esc(item.aluno)}</b> · turma ${esc(item.turma)}<br>
+        Emprestado a <b>${esc(item.aluno)}</b> · turma ${esc(item.turma)}${item.matricula?` · mat. ${esc(item.matricula)}`:''}<br>
         Desde ${fmtDate(item.dataSaida)}
         ${dias? `<br><span style="color:var(--danger)">${dias} dia(s) de atraso</span>`:''}
       </div>
@@ -759,8 +766,9 @@ function handleScanResult(idText){
 async function registrarSaida(itemId){
   const aluno = (document.getElementById('fAluno')?.value || '').trim();
   const turma = (document.getElementById('fTurma')?.value || '').trim();
-  if(!aluno || !turma){
-    scanMsg = {type:'error', text:'Preencha nome do aluno e turma.'};
+  const matricula = (document.getElementById('fMatricula')?.value || '').trim();
+  if(!aluno || !turma || !matricula){
+    scanMsg = {type:'error', text:'Preencha nome do aluno, turma e matrícula.'};
     render();
     return;
   }
@@ -771,10 +779,11 @@ async function registrarSaida(itemId){
   item.status = 'emprestado';
   item.aluno = aluno;
   item.turma = turma;
+  item.matricula = matricula;
   item.dataSaida = now;
   item.dataPrevista = now + prazoDias*86400000;
   await saveItems();
-  history.unshift({id:genId(), itemId:item.id, itemNome:item.nome, tipo:'saida', aluno, turma, timestamp:now});
+  history.unshift({id:genId(), itemId:item.id, itemNome:item.nome, tipo:'saida', aluno, turma, matricula, timestamp:now});
   await saveHistory();
   pendingItemId = null;
   scanMsg = null;
@@ -786,11 +795,12 @@ async function registrarDevolucao(itemId){
   const item = items.find(i=>i.id===itemId);
   if(!item) return;
   const now = Date.now();
-  history.unshift({id:genId(), itemId:item.id, itemNome:item.nome, tipo:'devolucao', aluno:item.aluno, turma:item.turma, timestamp:now});
+  history.unshift({id:genId(), itemId:item.id, itemNome:item.nome, tipo:'devolucao', aluno:item.aluno, turma:item.turma, matricula:item.matricula, timestamp:now});
   await saveHistory();
   item.status = 'disponivel';
   item.aluno = null;
   item.turma = null;
+  item.matricula = null;
   item.dataSaida = null;
   item.dataPrevista = null;
   await saveItems();
@@ -800,7 +810,20 @@ async function registrarDevolucao(itemId){
   render();
 }
 
-/* ==================== ABA: CADASTRAR ==================== */
+async function removerItem(itemId){
+  const item = items.find(i=>i.id===itemId);
+  if(!item) return;
+  const st = effectiveStatus(item);
+  if(st==='emprestado' || st==='atrasado'){
+    showToast('Não é possível remover: registre a devolução antes de excluir este item.');
+    return;
+  }
+  if(!confirm(`Remover "${item.nome}" (#${item.id}) da lista de itens cadastrados?\n\nO histórico de movimentações desse item será mantido, mas o item deixará de existir para novos empréstimos.`)) return;
+  items = items.filter(i=>i.id!==itemId);
+  await saveItems();
+  showToast(`Item removido: ${item.nome}`);
+  render();
+}
 let novoItemGerado = null;
 
 function renderCadastrar(panel){
@@ -887,7 +910,7 @@ function renderHistorico(panel){
   const filtered = history.filter(h=>{
     if(histFiltro!=='todos' && h.tipo!==histFiltro) return false;
     const q = histBusca.trim().toLowerCase();
-    if(q && !(h.itemNome.toLowerCase().includes(q) || (h.aluno||'').toLowerCase().includes(q) || (h.turma||'').toLowerCase().includes(q))) return false;
+    if(q && !(h.itemNome.toLowerCase().includes(q) || (h.aluno||'').toLowerCase().includes(q) || (h.turma||'').toLowerCase().includes(q) || (h.matricula||'').toLowerCase().includes(q))) return false;
     return true;
   });
 
@@ -895,16 +918,17 @@ function renderHistorico(panel){
     <h2 class="section-title">Histórico de movimentações</h2>
     <p class="section-sub">Registro de auditoria de todas as saídas e devoluções.</p>
     <div class="toolbar">
-      <input type="text" id="histBusca" placeholder="Buscar por item, aluno ou turma..." value="${esc(histBusca)}" style="flex:1;min-width:180px;">
+      <input type="text" id="histBusca" placeholder="Buscar por item, aluno, turma ou matrícula..." value="${esc(histBusca)}" style="flex:1;min-width:180px;">
       <div class="chip-group">
         <div class="chip ${histFiltro==='todos'?'active':''}" data-hfiltro="todos">Todos</div>
         <div class="chip ${histFiltro==='saida'?'active':''}" data-hfiltro="saida">Saídas</div>
         <div class="chip ${histFiltro==='devolucao'?'active':''}" data-hfiltro="devolucao">Devoluções</div>
       </div>
+      <button class="btn secondary" data-action="exportar-csv" ${filtered.length===0?'disabled':''}>Exportar CSV</button>
     </div>
     ${filtered.length===0 ? `<div class="empty">Nenhum registro encontrado.</div>` : `
       <table class="hist">
-        <thead><tr><th>Data/hora</th><th>Tipo</th><th>Item</th><th>Aluno</th><th>Turma</th></tr></thead>
+        <thead><tr><th>Data/hora</th><th>Tipo</th><th>Item</th><th>Aluno</th><th>Turma</th><th>Matrícula</th></tr></thead>
         <tbody>
           ${filtered.map(h=>`
             <tr>
@@ -913,12 +937,51 @@ function renderHistorico(panel){
               <td>${esc(h.itemNome)}</td>
               <td>${esc(h.aluno||'—')}</td>
               <td>${esc(h.turma||'—')}</td>
+              <td>${esc(h.matricula||'—')}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
     `}
   `;
+}
+
+function exportarHistoricoCSV(){
+  const filtered = history.filter(h=>{
+    if(histFiltro!=='todos' && h.tipo!==histFiltro) return false;
+    const q = histBusca.trim().toLowerCase();
+    if(q && !(h.itemNome.toLowerCase().includes(q) || (h.aluno||'').toLowerCase().includes(q) || (h.turma||'').toLowerCase().includes(q) || (h.matricula||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  if(filtered.length===0) return;
+
+  function csvField(v){
+    const s = String(v==null ? '' : v);
+    return `"${s.replace(/"/g,'""')}"`;
+  }
+
+  const cabecalho = ['Data','Hora','Tipo','Item','Codigo do item','Aluno','Turma','Matricula'];
+  const linhas = filtered.map(h=>{
+    const d = new Date(h.timestamp);
+    const data = d.toLocaleDateString('pt-BR');
+    const hora = d.toLocaleTimeString('pt-BR');
+    const tipo = h.tipo==='saida' ? 'Saida' : 'Devolucao';
+    return [data, hora, tipo, h.itemNome, h.itemId, h.aluno||'', h.turma||'', h.matricula||''].map(csvField).join(';');
+  });
+  // \uFEFF (BOM) garante acentuação correta ao abrir no Excel
+  const csvContent = '\uFEFF' + cabecalho.map(csvField).join(';') + '\r\n' + linhas.join('\r\n');
+
+  const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const agora = new Date().toISOString().slice(0,10);
+  a.download = `historico-emprestimos-${agora}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('CSV exportado com sucesso.');
 }
 
 /* ==================== QR CODES ==================== */
@@ -985,6 +1048,8 @@ document.addEventListener('click', async (e)=>{
     else if(action==='ir-escanear'){ activeTab='escanear'; pendingItemId=id; scanMsg=null; render(); }
     else if(action==='registrar-saida'){ await registrarSaida(id); }
     else if(action==='registrar-devolucao'){ await registrarDevolucao(id); }
+    else if(action==='remover-item'){ await removerItem(id); }
+    else if(action==='exportar-csv'){ exportarHistoricoCSV(); }
     else if(action==='cancelar-pendente'){ pendingItemId=null; scanMsg=null; render(); }
     else if(action==='reset-tudo'){
       if(confirm('Isso vai apagar todos os itens e o histórico para todos os usuários. Confirmar?')){
